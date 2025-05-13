@@ -1,116 +1,88 @@
 @{
     ViewData["Title"] = "Panel de Coordinador";
+    Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-<h2 class="mb-4">Panel de Coordinador</h2>
+<h1 class="mb-4">👷 Panel de Coordinador</h1>
 
 <div class="row">
-  <div class="col-md-6">
-    <div class="card mb-4 shadow-sm">
-      <div class="card-header bg-success text-white">
-        <h5 class="card-title mb-0">Alertas Recientes</h5>
-      </div>
-      <div class="card-body p-2">
-        <ul class="list-group" id="alertList"></ul>
-      </div>
+  <div class="col-md-6 mb-4">
+    <div class="card shadow-sm">
+      <div class="card-header bg-warning text-dark">Alertas</div>
+      <ul class="list-group list-group-flush" id="alertList"></ul>
     </div>
   </div>
-  <div class="col-md-6">
-    <div class="card mb-4 shadow-sm">
-      <div class="card-header bg-info text-white">
-        <h5 class="card-title mb-0">Datos en Tiempo Real</h5>
-      </div>
+  <div class="col-md-6 mb-4">
+    <div class="card shadow-sm">
+      <div class="card-header bg-info text-white">Datos en Tiempo Real</div>
       <div class="card-body">
-        <canvas id="liveChart" height="150"></canvas>
+        <canvas id="liveChart"></canvas>
       </div>
     </div>
   </div>
 </div>
 
-<table class="table table-sm table-striped">
-  <thead>
-    <tr>
-      <th>Temp</th><th>Humedad</th><th>Nivel</th><th>pH</th><th>FechaHora</th>
-    </tr>
-  </thead>
+<table class="table table-sm">
+  <thead><tr><th>Temp</th><th>Hum</th><th>Nivel</th><th>pH</th><th>FechaHora</th></tr></thead>
   <tbody id="sensorBody"></tbody>
 </table>
 
 @section Scripts {
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
-    // Inicializar chart vacío con 4 datasets
-    const ctxLive = document.getElementById('liveChart').getContext('2d');
-    const liveChart = new Chart(ctxLive, {
-      type: 'line',
-      data: {
-        labels: [], 
-        datasets: [
-          { label: 'Temperatura', data: [], tension: 0.3, fill: false },
-          { label: 'Humedad',     data: [], tension: 0.3, fill: false },
-          { label: 'Nivel',       data: [], tension: 0.3, fill: false },
-          { label: 'pH',          data: [], tension: 0.3, fill: false }
-        ]
-      },
-      options: {
-        responsive: true,
-        plugins: { legend: { position: 'bottom' } },
-        scales: {
-          x: { title: { display: true, text: 'Hora' } },
-          y: { title: { display: true, text: 'Valor' } }
-        }
-      }
+  const liveCtx = document.getElementById('liveChart').getContext('2d');
+  const liveChart = new Chart(liveCtx, {
+    type:'line',
+    data:{ labels:[], datasets:[
+      {label:'T', data:[], fill:false},
+      {label:'H', data:[], fill:false},
+      {label:'N', data:[], fill:false},
+      {label:'pH',data:[], fill:false}
+    ]},
+    options:{ responsive:true }
+  });
+
+  async function refreshCoord() {
+    // Sensores
+    const data = await (await fetch('/datos')).json();
+    const last5 = data.slice(-5);
+    document.getElementById('sensorBody').innerHTML = '';
+    liveChart.data.labels = [];
+    liveChart.data.datasets.forEach(ds=>ds.data=[]);
+    last5.reverse().forEach(s=>{
+      document.getElementById('sensorBody').insertAdjacentHTML('beforeend', `
+        <tr>
+          <td>${s.temperatue.toFixed(1)}</td><td>${s.humidity.toFixed(1)}</td>
+          <td>${s.nivel.toFixed(1)}</td><td>${s.ph.toFixed(2)}</td>
+          <td>${s.FechaHora}</td>
+        </tr>`);
+      liveChart.data.labels.push(new Date(s.FechaHora).toLocaleTimeString());
+      liveChart.data.datasets[0].data.push(s.temperatue);
+      liveChart.data.datasets[1].data.push(s.humidity);
+      liveChart.data.datasets[2].data.push(s.nivel);
+      liveChart.data.datasets[3].data.push(s.ph);
     });
+    liveChart.update();
 
-    async function loadData() {
-      // Sensores
-      const resp = await fetch('/datos');
-      const data = await resp.json();
-      const last5 = data.slice(-5);
-
-      // Actualizar tabla
-      const tbody = document.getElementById('sensorBody');
-      tbody.innerHTML = '';
-      last5.reverse().forEach(s => {
-        tbody.insertAdjacentHTML('beforeend', `
-          <tr>
-            <td>${s.temperatue.toFixed(1)}</td>
-            <td>${s.humidity.toFixed(1)}</td>
-            <td>${s.nivel.toFixed(1)}</td>
-            <td>${s.ph.toFixed(2)}</td>
-            <td>${s.FechaHora}</td>
-          </tr>`);
+    // Alertas
+    const [tAlerts, nAlerts] = await Promise.all([
+      fetch('/datos1').then(r=>r.json()),
+      fetch('/datos2').then(r=>r.json())
+    ]);
+    const list = document.getElementById('alertList');
+    list.innerHTML = '';
+    [...tAlerts.slice(-3).reverse(), ...nAlerts.slice(-3).reverse()]
+      .forEach(a=>{
+        const text = a.alertaTempHum || a.alertaNivel;
+        list.insertAdjacentHTML('beforeend', `
+          <li class="list-group-item d-flex justify-content-between">
+            <span>${text}</span>
+            <small class="text-muted">${a.FechaHora}</small>
+          </li>`);
       });
+  }
 
-      // Actualizar gráfico
-      const times = last5.map(s => new Date(s.FechaHora).toLocaleTimeString());
-      liveChart.data.labels = times;
-      liveChart.data.datasets[0].data = last5.map(s => s.temperatue);
-      liveChart.data.datasets[1].data = last5.map(s => s.humidity);
-      liveChart.data.datasets[2].data = last5.map(s => s.nivel);
-      liveChart.data.datasets[3].data = last5.map(s => s.ph);
-      liveChart.update();
-
-      // Alertas
-      const [tempAlerts, nivelAlerts] = await Promise.all([
-        fetch('/datos1').then(r => r.json()),
-        fetch('/datos2').then(r => r.json())
-      ]);
-      const list = document.getElementById('alertList');
-      list.innerHTML = '';
-      [...tempAlerts.slice(-3).reverse(), ...nivelAlerts.slice(-3).reverse()]
-        .forEach(a => {
-          const text = a.alertaTempHum ?? a.alertaNivel;
-          list.insertAdjacentHTML('beforeend', `
-            <li class="list-group-item d-flex justify-content-between">
-              <span>${text}</span>
-              <small class="text-muted">${a.FechaHora}</small>
-            </li>`);
-        });
-    }
-
-    // Carga inicial y refresco cada 5 s
-    loadData();
-    setInterval(loadData, 5000);
+  refreshCoord();
+  setInterval(refreshCoord, 5000);
   </script>
 }

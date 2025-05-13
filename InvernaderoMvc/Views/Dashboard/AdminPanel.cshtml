@@ -3,62 +3,85 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-<h1 class="mb-4">📋 Panel de Administración</h1>
+<h1 class="mb-4">📊 Promedios Diarios</h1>
 
-<div class="row">
-    <div class="col-md-6 mb-4">
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                Usuarios Registrados
-            </div>
-            <div class="card-body">
-                <canvas id="usersChart"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-6 mb-4">
-        <div class="card">
-            <div class="card-header bg-danger text-white">
-                Alertas Activas
-            </div>
-            <div class="card-body">
-                <canvas id="alertsChart"></canvas>
-            </div>
-        </div>
-    </div>
+<div class="card mb-4 shadow-sm">
+  <div class="card-body">
+    <canvas id="dailyAvgChart"></canvas>
+  </div>
 </div>
 
-<p class="mt-4">
-    Este panel muestra un resumen de la actividad del sistema. Asegúrese de revisar los niveles críticos de humedad, temperatura y alertas.
-</p>
+<table class="table table-hover">
+  <thead class="table-light">
+    <tr>
+      <th>Fecha</th><th>Temp</th><th>Humedad</th><th>Nivel</th><th>pH</th>
+    </tr>
+  </thead>
+  <tbody id="avgTableBody"></tbody>
+</table>
 
 @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-        const usersCtx = document.getElementById('usersChart').getContext('2d');
-        const usersChart = new Chart(usersCtx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Administradores', 'Usuarios'],
-                datasets: [{
-                    data: [3, 12],
-                    backgroundColor: ['#007bff', '#28a745']
-                }]
-            }
-        });
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+  async function loadAdminData() {
+    const resp = await fetch('/datos');
+    const data = await resp.json();
 
-        const alertsCtx = document.getElementById('alertsChart').getContext('2d');
-        const alertsChart = new Chart(alertsCtx, {
-            type: 'bar',
-            data: {
-                labels: ['Temperatura', 'Humedad', 'Sensor desconectado'],
-                datasets: [{
-                    label: 'Cantidad',
-                    data: [2, 5, 1],
-                    backgroundColor: ['#dc3545', '#ffc107', '#6c757d']
-                }]
-            }
-        });
-    </script>
+    // Agrupar por día y calcular promedios
+    const byDay = {};
+    data.forEach(s => {
+      const day = new Date(s.FechaHora).toISOString().slice(0,10);
+      if (!byDay[day]) byDay[day] = { temps:[], hums:[], levels:[], phs:[] };
+      byDay[day].temps.push(s.temperatue);
+      byDay[day].hums.push(s.humidity);
+      byDay[day].levels.push(s.nivel);
+      byDay[day].phs.push(s.ph);
+    });
+
+    const labels = [], avgTemp=[], avgHum=[], avgLevel=[], avgPh=[];
+    for (const day of Object.keys(byDay).sort()) {
+      const group = byDay[day];
+      labels.push(day);
+      avgTemp.push( group.temps.reduce((a,b)=>a+b)/group.temps.length );
+      avgHum.push(  group.hums.reduce((a,b)=>a+b)/group.hums.length );
+      avgLevel.push(group.levels.reduce((a,b)=>a+b)/group.levels.length);
+      avgPh.push(   group.phs.reduce((a,b)=>a+b)/group.phs.length );
+    }
+
+    // Tabla
+    const tbody = document.getElementById('avgTableBody');
+    tbody.innerHTML = '';
+    labels.forEach((day,i) => {
+      tbody.insertAdjacentHTML('beforeend', `
+        <tr>
+          <td>${day}</td>
+          <td>${avgTemp[i].toFixed(1)}</td>
+          <td>${avgHum[i].toFixed(1)}</td>
+          <td>${avgLevel[i].toFixed(1)}</td>
+          <td>${avgPh[i].toFixed(2)}</td>
+        </tr>`);
+    });
+
+    // Gráfico
+    const ctx = document.getElementById('dailyAvgChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label:'Temp (°C)',    data:avgTemp,   backgroundColor:'rgba(255,99,132,0.5)' },
+          { label:'Humedad (%)',  data:avgHum,    backgroundColor:'rgba(54,162,235,0.5)' },
+          { label:'Nivel',        data:avgLevel,  backgroundColor:'rgba(255,206,86,0.5)' },
+          { label:'pH',           data:avgPh,     backgroundColor:'rgba(75,192,192,0.5)' }
+        ]
+      },
+      options: {
+        responsive: true,
+        scales:{ x:{ stacked:true }, y:{ stacked:false } }
+      }
+    });
+  }
+
+  loadAdminData();
+  </script>
 }

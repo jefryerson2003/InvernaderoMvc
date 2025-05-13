@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("InvernaderoMvc")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+75d2f0a8dc44ac0aa366ed86daa50bf561ec38e7")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+de8c64e7fd715916eecf3c2f60d64dd0787d7e7b")]
 [assembly: System.Reflection.AssemblyProductAttribute("InvernaderoMvc")]
 [assembly: System.Reflection.AssemblyTitleAttribute("InvernaderoMvc")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
