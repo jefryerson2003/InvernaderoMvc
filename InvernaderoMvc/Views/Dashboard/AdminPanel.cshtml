@@ -1,0 +1,64 @@
+@{
+    ViewData["Title"] = "Panel de Administración";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<h1 class="mb-4">📋 Panel de Administración</h1>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                Usuarios Registrados
+            </div>
+            <div class="card-body">
+                <canvas id="usersChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                Alertas Activas
+            </div>
+            <div class="card-body">
+                <canvas id="alertsChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<p class="mt-4">
+    Este panel muestra un resumen de la actividad del sistema. Asegúrese de revisar los niveles críticos de humedad, temperatura y alertas.
+</p>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const usersCtx = document.getElementById('usersChart').getContext('2d');
+        const usersChart = new Chart(usersCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Administradores', 'Usuarios'],
+                datasets: [{
+                    data: [3, 12],
+                    backgroundColor: ['#007bff', '#28a745']
+                }]
+            }
+        });
+
+        const alertsCtx = document.getElementById('alertsChart').getContext('2d');
+        const alertsChart = new Chart(alertsCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Temperatura', 'Humedad', 'Sensor desconectado'],
+                datasets: [{
+                    label: 'Cantidad',
+                    data: [2, 5, 1],
+                    backgroundColor: ['#dc3545', '#ffc107', '#6c757d']
+                }]
+            }
+        });
+    </script>
+}
